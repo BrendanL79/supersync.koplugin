@@ -57,12 +57,6 @@ function SuperSync:addToMainMenu(menu_items)
         text = _("Super Sync"),
         sub_item_table = {
             {
-                text = _("Settings"),
-                callback = function()
-                    self:showSettings()
-                end,
-            },
-            {
                 text = _("Manual Sync"),
                 enabled_func = function()
                     return self.settings.enabled and self:isConfigured()
@@ -75,6 +69,13 @@ function SuperSync:addToMainMenu(menu_items)
                 text = _("Status"),
                 callback = function()
                     self:showStatus()
+                end,
+            },
+            {
+                text = _("Settings"),
+                separator = true,
+                callback = function()
+                    self:showSettings()
                 end,
             },
         },
