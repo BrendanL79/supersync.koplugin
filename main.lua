@@ -23,7 +23,7 @@ local _ = require("gettext")
 local T = require("ffi/util").template
 
 -- Import our sync engine
-local SyncEngine = require("plugins/supersync.koplugin/syncengine")
+local SyncEngine = require("syncengine")
 
 local SuperSync = WidgetContainer:extend{
     name = "supersync",
