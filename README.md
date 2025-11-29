@@ -1,3 +1,11 @@
+# WARNING: PLEASE DON'T USE THIS YET
+
+I see and appreciate the interest in this plugin as expressed via GitHub stars, but I cannot stress enough that this plugin is NOT READY FOR USE yet. 
+
+As of today (2025.11.29) the codebase consists of a vibe-coded MVP (thanks, Claude Code!), which I am presently trying to make right, and the below README text, also mostly by Claude, which gives the unfortunate impression that the plugin is already done. Again: IT ISN'T DONE by any stretch of the imagination.
+
+Pull requests are welcome!
+
 # Super Sync Plugin for KOReader
 
 A comprehensive metadata synchronization plugin that backs up your complete reading data to cloud storage.
