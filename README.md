@@ -99,24 +99,29 @@ Configure automatic syncing in Settings:
 ```
 plugins/supersync.koplugin/
 ├── _meta.lua          # Plugin metadata and description
-├── main.lua           # Main plugin UI and logic
-├── syncengine.lua     # Core synchronization functionality
+├── main.lua           # Main plugin UI and menu integration
+├── syncengine.lua     # Core synchronization logic
+├── cloudprovider.lua  # Cloud API abstraction layer
 └── README.md          # This documentation
 ```
 
 ## Architecture
 
 ### Main Plugin (`main.lua`)
-- **UI Integration**: Menu items, settings dialogs, progress widgets
+- **UI Integration**: Menu items using KOReader's standard menu patterns
 - **Settings Management**: Configuration storage and validation
 - **Event Handling**: Document close events, auto-sync triggers
 - **Cloud Storage Interface**: Integration with existing cloud storage settings
 
 ### Sync Engine (`syncengine.lua`)
 - **Directory Discovery**: Scans for `.sdr` directories across storage locations
-- **Cloud Operations**: Upload/download files using cloud storage APIs
-- **Progress Tracking**: Callback system for real-time progress updates
+- **Sync Orchestration**: Coordinates full sync operations with progress tracking
 - **Error Handling**: Robust error recovery and logging
+
+### Cloud Provider (`cloudprovider.lua`)
+- **API Abstraction**: Unified interface for Dropbox, WebDAV, and FTP
+- **Settings Access**: Uses KOReader's LuaSettings to read cloud storage config
+- **Provider Factory**: Creates appropriate provider instance based on server type
 
 ### Data Flow
 1. **Discovery**: Scan local storage for `.sdr` directories
