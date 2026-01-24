@@ -100,8 +100,11 @@ Configure automatic syncing in Settings:
 plugins/supersync.koplugin/
 ├── _meta.lua          # Plugin metadata and description
 ├── main.lua           # Main plugin UI and menu integration
-├── syncengine.lua     # Core synchronization logic
+├── syncengine.lua     # Core synchronization orchestration
 ├── cloudprovider.lua  # Cloud API abstraction layer
+├── ftphelper.lua      # FTP protocol operations (MDTM, LIST, MKD)
+├── ftpsync.lua        # FTP bidirectional sync logic
+├── synccache.lua      # Sync state persistence for conflict detection
 └── README.md          # This documentation
 ```
 
@@ -115,32 +118,68 @@ plugins/supersync.koplugin/
 
 ### Sync Engine (`syncengine.lua`)
 - **Directory Discovery**: Scans for `.sdr` directories across storage locations
-- **Sync Orchestration**: Coordinates full sync operations with progress tracking
-- **Error Handling**: Robust error recovery and logging
+- **Sync Orchestration**: Routes to appropriate sync method based on provider
+- **SyncService Integration**: Uses KOReader's SyncService for Dropbox/WebDAV
+- **FtpSync Integration**: Delegates to FtpSync for FTP servers
 
 ### Cloud Provider (`cloudprovider.lua`)
 - **API Abstraction**: Unified interface for Dropbox, WebDAV, and FTP
 - **Settings Access**: Uses KOReader's LuaSettings to read cloud storage config
 - **Provider Factory**: Creates appropriate provider instance based on server type
 
-### Data Flow
+### FTP Helper (`ftphelper.lua`)
+- **MDTM Command**: Get remote file modification times
+- **LIST Parsing**: Extract file metadata from directory listings
+- **MKD Command**: Create remote directories
+- **Raw FTP**: Direct LuaSocket FTP operations
+
+### FTP Sync (`ftpsync.lua`)
+- **Bidirectional Sync**: Upload and download based on timestamps
+- **Conflict Detection**: Three-way comparison using sync cache
+- **Merge Logic**: Lua table merging for metadata files
+- **Fallback Mode**: Upload-only when MDTM not supported
+
+### Sync Cache (`synccache.lua`)
+- **State Persistence**: JSON file storing sync history
+- **Change Detection**: Track local and remote mtimes at sync time
+- **Content Cache**: Store file content for three-way merge
+- **Clock Skew Handling**: Compare deltas, not absolute timestamps
+
+### Data Flow (Bidirectional)
 1. **Discovery**: Scan local storage for `.sdr` directories
-2. **Preparation**: Create remote directory structure
-3. **Upload**: Transfer each file with progress updates
-4. **Verification**: Log results and update sync status
+2. **Remote Listing**: Get remote file list with modification times
+3. **Comparison**: Determine action for each file (upload/download/merge/skip)
+4. **Conflict Resolution**: Three-way merge for files changed on both sides
+5. **Transfer**: Upload or download files as determined
+6. **Cache Update**: Record sync state for next comparison
 
 ## Cloud Storage Support
 
 ### Supported Providers
-- **Dropbox**: Full API integration with OAuth
-- **WebDAV**: Standard WebDAV protocol support  
-- **FTP**: Traditional FTP file transfer
+
+| Provider | Sync Type | Conflict Detection | Notes |
+|----------|-----------|-------------------|-------|
+| **Dropbox** | Bidirectional | ETag-based | Uses KOReader's SyncService |
+| **WebDAV** | Bidirectional | ETag-based | Uses KOReader's SyncService |
+| **FTP** | Bidirectional | Timestamp-based | Uses FtpSync with MDTM command |
+
+### Sync Mechanisms
+
+**Dropbox & WebDAV** (via SyncService):
+- ETag-based collision detection
+- Server-side conflict handling
+- Automatic retry on 412 errors
+
+**FTP** (via FtpSync):
+- MDTM command for modification times
+- Local sync cache for three-way comparison
+- Graceful fallback to upload-only if MDTM not supported
 
 ### API Integration
 The plugin uses KOReader's existing cloud storage abstraction:
 - `DropBoxApi`: Dropbox API v2 integration
 - `WebDavApi`: WebDAV PROPFIND/PUT/GET operations
-- `FtpApi`: FTP file operations
+- `FtpHelper`: Custom FTP operations (MDTM, LIST, MKD)
 
 ## Storage Locations
 
@@ -219,18 +258,22 @@ View logs in KOReader's standard log output.
 ## Future Enhancements
 
 ### Planned Features
-- **Bidirectional sync**: Download and merge remote changes
-- **Conflict resolution**: Handle same document modified on multiple devices
 - **Selective sync**: Choose specific documents or metadata types
 - **Sync history**: Track detailed sync operations over time
 - **Compression**: ZIP `.sdr` folders for efficient transfer
-- **Delta sync**: Only upload changed files
+- **Delta sync**: Only upload changed files (currently uploads entire files)
 - **Multiple devices**: Device identification and merge strategies
+- **Sync scheduling**: Background sync at configurable intervals
 
 ### API Extensions
 - Support for additional cloud providers (Google Drive, OneDrive)
 - Custom sync targets (SSH/SFTP, custom APIs)
 - Local network sync (shared folders, NAS)
+
+### Recently Implemented
+- ✅ **Bidirectional sync**: All providers now support download and merge
+- ✅ **Conflict resolution**: Three-way merge for files changed on multiple devices
+- ✅ **FTP timestamp sync**: MDTM-based change detection for FTP servers
 
 ## Troubleshooting
 

@@ -3,7 +3,7 @@ Super Sync Engine
 
 Core synchronization functionality for backing up .sdr metadata directories
 to cloud storage. Uses KOReader's SyncService for bidirectional sync with
-conflict resolution (Dropbox/WebDAV), falls back to upload-only for FTP.
+conflict resolution (Dropbox/WebDAV), and FtpSync for FTP bidirectional sync.
 --]]
 
 local DataStorage = require("datastorage")
@@ -14,6 +14,7 @@ local util = require("util")
 local _ = require("gettext")
 
 local CloudProvider = require("cloudprovider")
+local FtpSync = require("ftpsync")
 
 local SyncEngine = {}
 
@@ -58,8 +59,16 @@ function SyncEngine:getInitError()
 end
 
 function SyncEngine:supportsBidirectionalSync()
-    -- SyncService only supports Dropbox and WebDAV
-    return self.server and (self.server.type == "dropbox" or self.server.type == "webdav")
+    -- All providers now support bidirectional sync:
+    -- - Dropbox/WebDAV: via SyncService with ETag-based conflict detection
+    -- - FTP: via FtpSync with timestamp-based conflict detection
+    return self.server and (self.server.type == "dropbox" or
+                            self.server.type == "webdav" or
+                            self.server.type == "ftp")
+end
+
+function SyncEngine:usesFtpSync()
+    return self.server and self.server.type == "ftp"
 end
 
 -- Get list of all .sdr directories that need syncing
@@ -470,6 +479,11 @@ function SyncEngine:performFullSync(progress_callback)
         return false, self.init_error
     end
 
+    -- Use FtpSync for FTP servers
+    if self:usesFtpSync() then
+        return self:performFtpSync(progress_callback)
+    end
+
     local sync_type = self:supportsBidirectionalSync() and "bidirectional" or "upload-only"
     logger.info("SuperSync: Starting", sync_type, "sync operation")
 
@@ -520,6 +534,36 @@ function SyncEngine:performFullSync(progress_callback)
 
     logger.info("SuperSync: Completed.", total_files_synced, "files synced from", completed_dirs, "directories")
     return true, total_files_synced
+end
+
+--[[--
+Perform FTP sync using FtpSync module (timestamp-based bidirectional sync)
+--]]
+function SyncEngine:performFtpSync(progress_callback)
+    logger.info("SuperSync: Using FtpSync for FTP bidirectional sync")
+
+    local sdr_directories = self:getSdrDirectories()
+    logger.info("SuperSync: Found", #sdr_directories, ".sdr directories to sync")
+
+    if #sdr_directories == 0 then
+        if progress_callback then
+            progress_callback(1, 1, _("No metadata directories found"))
+        end
+        return true, 0
+    end
+
+    local ftp_sync = FtpSync:new(self.server, self.sync_folder_path)
+    local success, total_synced, stats = ftp_sync:performFullSync(sdr_directories, progress_callback)
+
+    if success then
+        -- Return detailed stats if available
+        if stats then
+            return true, total_synced, stats
+        end
+        return true, total_synced
+    else
+        return false, total_synced
+    end
 end
 
 return SyncEngine
