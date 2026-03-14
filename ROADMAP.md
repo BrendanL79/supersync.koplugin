@@ -17,11 +17,14 @@
 
 ### 1.2 Local Folder Sync Target
 - **The big idea:** Allow syncing to a local directory path instead of a cloud API
-- Users point SuperSync at a local folder (e.g., `/mnt/syncthing/koreader-sync/`)
+- Users point SuperSync at a local folder (e.g., `/storage/emulated/0/Syncthing/koreader-sync/`)
 - That folder is managed by whatever external tool the user prefers: **Syncthing, rclone, Nextcloud client, Resilio Sync, Dropbox desktop, Google Drive desktop, OneDrive, etc.**
 - SuperSync handles `.sdr` discovery, merge logic, and conflict resolution; the external tool handles transport
 - **Massive benefit:** Instantly supports every cloud/sync service without implementing OAuth or provider-specific APIs
 - Simplest possible implementation: just use `lfs` file operations (copy, stat) instead of network calls
+- **Android-first:** Add Android-specific niceties (detect Syncthing shared folder, suggest path) while keeping basic folder picker working on all platforms
+- **Note:** Legacy e-ink devices (old Kindles) can't run Syncthing - those users stick with Dropbox/WebDAV/FTP providers
+- **Later enhancement (see 5.4):** Syncthing REST API integration for tighter UX (sync status, trigger syncs, verify propagation)
 
 ### 1.3 Sync Progress Bar
 - Replace file-by-file InfoMessage with a proper progress bar widget
@@ -137,6 +140,15 @@
 - ZIP `.sdr` folders before upload for bandwidth savings
 - Trade-off: adds complexity to conflict resolution flow
 
+### 5.4 Syncthing REST API Integration
+- Talk to Syncthing's localhost REST API (typically port 8384)
+- Show sync status within SuperSync UI (pending changes, last sync time, connected devices)
+- Trigger syncs on demand, verify file propagation completed
+- Requires user to configure API key in SuperSync settings
+- Enhancement to the "dumb local folder" approach (1.2) - not a replacement
+- Android: works with Syncthing Fork app running separately
+- Desktop Linux: works with Syncthing daemon
+
 ---
 
 ## Suggested Implementation Phases
@@ -147,7 +159,7 @@ Phase 2 (Usability):    1.4, 1.5, 2.4, 2.5       -- Preview, history, selective 
 Phase 3 (Library):      1.1, 2.3                  -- Book catalog + delta sync
 Phase 4 (Intelligence): 3.1, 3.2, 3.3             -- Multi-device merge + conflict UI
 Phase 5 (Expansion):    4.1, 4.2, 3.4             -- SFTP, versioned backups, scheduling
-Phase 6 (Ecosystem):    4.3, 4.4, 5.1-5.3         -- Export/import, Calibre, P2P, plugin API
+Phase 6 (Ecosystem):    4.3, 4.4, 5.1-5.4         -- Export/import, Calibre, P2P, plugin API, Syncthing API
 ```
 
 **Phase 1 is the critical path.** Local folder sync (1.2) is the single highest-impact feature because it:
