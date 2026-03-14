@@ -6,7 +6,16 @@
 
 ## Tier 1: Quick Wins (Low complexity, high user value)
 
-### 1.1 Local Folder Sync Target
+### 1.1 Book Catalog & On-Demand Download
+- **Always sync metadata** (current behavior, lightweight)
+- **Catalog remote books:** Maintain an index of all books available across devices in "sync land"
+- **Browse available books:** UI to see what books exist on other devices but not locally
+- **On-demand download:** User taps to pull a specific book to their device
+- Could show: title, author, file size, last read date, reading progress
+- Storage-friendly: essential for e-ink devices with limited space
+- Architecture TBD: could be integrated with metadata sync or a separate feature sharing the same provider config
+
+### 1.2 Local Folder Sync Target
 - **The big idea:** Allow syncing to a local directory path instead of a cloud API
 - Users point SuperSync at a local folder (e.g., `/mnt/syncthing/koreader-sync/`)
 - That folder is managed by whatever external tool the user prefers: **Syncthing, rclone, Nextcloud client, Resilio Sync, Dropbox desktop, Google Drive desktop, OneDrive, etc.**
@@ -14,17 +23,17 @@
 - **Massive benefit:** Instantly supports every cloud/sync service without implementing OAuth or provider-specific APIs
 - Simplest possible implementation: just use `lfs` file operations (copy, stat) instead of network calls
 
-### 1.2 Sync Progress Bar
+### 1.3 Sync Progress Bar
 - Replace file-by-file InfoMessage with a proper progress bar widget
 - Show: current file name, N/M files complete, bytes transferred
 - Use KOReader's `ProgressWidget` patterns
 
-### 1.3 Dry Run / Preview Mode
+### 1.4 Dry Run / Preview Mode
 - "Preview sync" option that shows what *would* happen without transferring files
 - Summary: X files to upload, Y to download, Z conflicts, W unchanged
 - Builds user trust before committing to a sync operation
 
-### 1.4 Sync History Log
+### 1.5 Sync History Log
 - Record each sync operation (timestamp, files uploaded/downloaded/merged/skipped, errors) to a local log file
 - Add "Sync history" menu item showing last N syncs with summary stats
 - Useful for debugging and user confidence
@@ -133,25 +142,27 @@
 ## Suggested Implementation Phases
 
 ```
-Phase 1 (Foundation):   1.1, 1.2, 2.1, 2.2     -- Local folder sync + trust & reliability
-Phase 2 (Usability):    1.3, 1.4, 2.4, 2.5      -- Preview, history, selective sync, device IDs
-Phase 3 (Performance):  2.3                       -- Delta sync
-Phase 4 (Intelligence): 3.1, 3.2, 3.3            -- Multi-device merge + conflict UI
-Phase 5 (Expansion):    4.1, 4.2, 3.4            -- SFTP, versioned backups, scheduling
-Phase 6 (Ecosystem):    4.3, 4.4, 5.1-5.3        -- Export/import, Calibre, P2P, plugin API
+Phase 1 (Foundation):   1.2, 1.3, 2.1, 2.2      -- Local folder sync + trust & reliability
+Phase 2 (Usability):    1.4, 1.5, 2.4, 2.5       -- Preview, history, selective sync, device IDs
+Phase 3 (Library):      1.1, 2.3                  -- Book catalog + delta sync
+Phase 4 (Intelligence): 3.1, 3.2, 3.3             -- Multi-device merge + conflict UI
+Phase 5 (Expansion):    4.1, 4.2, 3.4             -- SFTP, versioned backups, scheduling
+Phase 6 (Ecosystem):    4.3, 4.4, 5.1-5.3         -- Export/import, Calibre, P2P, plugin API
 ```
 
-**Phase 1 is the critical path.** Local folder sync (1.1) is the single highest-impact feature because it:
+**Phase 1 is the critical path.** Local folder sync (1.2) is the single highest-impact feature because it:
 - Eliminates OAuth implementation burden for new providers
 - Lets users leverage their existing sync infrastructure
 - Works offline (sync to local folder, external tool syncs when online)
 - Simplest to implement (filesystem operations only)
 
+**Book catalog (1.1)** is placed in Phase 3 because it depends on having a working sync target and needs more design thought around architecture (integrated vs. separate from metadata sync).
+
 ---
 
 ## What NOT to Build
 
-- **Full file sync (ebooks themselves):** Out of scope. SuperSync is metadata-only by design.
 - **Account system / central server:** Keep it decentralized. Users bring their own storage.
 - **Real-time sync:** E-ink devices aren't suited for it. Event-triggered (on close, on suspend) is the right model.
-- **OAuth for Google Drive / OneDrive directly:** The local folder approach (1.1) makes this unnecessary. Let dedicated sync clients handle auth.
+- **OAuth for Google Drive / OneDrive directly:** The local folder approach (1.2) makes this unnecessary. Let dedicated sync clients handle auth.
+- **Automatic full library mirror:** Don't blindly download all books to all devices. Book downloads should always be user-initiated (see 1.1 catalog approach).
