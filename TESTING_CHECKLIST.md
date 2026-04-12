@@ -137,6 +137,8 @@ Prerequisites: at least one book opened so `.sdr` metadata files exist.
 
 - [ ] "Super Sync: Initializing..." toast appears briefly
 - [ ] Sync completes and shows "Super Sync completed! N files uploaded."
+  (Note: the message always says "uploaded" even for bidirectional sync —
+  the count reflects total files synced, not just uploads)
 - [ ] Remote folder `<sync_folder>/<bookname>.sdr/` is created on the server
 - [ ] `metadata.<ext>.lua` and any other `.sdr` files appear on the server
 - [ ] **Status** screen now shows a last-sync timestamp
@@ -173,12 +175,21 @@ Prerequisites: at least one book opened so `.sdr` metadata files exist.
 - [ ] Both bookmarks X and Y are present after sync (three-way merge)
 - [ ] No data lost; no crash
 
-### 10d. Delete propagation
+### 10d. Delete propagation ⚠️ NOT IMPLEMENTED for Dropbox/WebDAV
+
+> **Note:** The Dropbox/WebDAV sync path (`SyncService`) does **not** implement
+> delete propagation. The code only iterates over local `.sdr` directories that
+> still exist (`syncengine.lua:getSdrDirectories`). Deleted local directories
+> are simply absent from the scan — the remote copy persists. Only FTP (via
+> `FtpSync`) supports delete propagation. Skip this test for Dropbox/WebDAV, or
+> verify that remote files **persist** after local deletion (current behavior).
 
 1. Delete a `.sdr` directory locally (or remove the book)
 2. Trigger sync
 
-- [ ] Corresponding remote folder is removed (or file removed per sync logic)
+- [ ] **FTP only:** Remote folder/files are deleted (`ACTION_DELETE_REMOTE`)
+- [ ] **Dropbox/WebDAV:** Remote folder **persists** (delete propagation not
+  implemented — see note above)
 
 ---
 
@@ -249,8 +260,9 @@ FileZilla Server, ProFTPD).
 
 Use an FTP server without `MDTM` support (or simulate by blocking the command).
 
-- [ ] Warning message shown: "FTP server does not support MDTM – falling back
-  to upload-only"
+- [ ] Warning logged: "FTP server does not support MDTM – falling back to
+  upload-only" (check `crash.log` or stdout — this is a `logger.warn`, not a
+  UI message)
 - [ ] Sync proceeds in upload-only mode
 - [ ] All local files are uploaded (no download, no conflict detection)
 - [ ] No crash or error dialog
@@ -317,6 +329,64 @@ Use an FTP server without `MDTM` support (or simulate by blocking the command).
   without timeout or memory error
 - [ ] Sync folder path that already exists on server: no duplicate folder
   created, sync runs normally
+- [ ] Books stored in **hash-based settings directory**
+  (`DataStorage:getDocSettingsHashDir()`) are discovered and synced correctly
+- [ ] SyncService URL construction: verify that setting `sync_server.url` to a
+  relative path (e.g., `/KOReader-SuperSync/book.sdr`) works correctly for
+  both Dropbox and WebDAV (inspect network traffic or server logs)
+
+---
+
+## 19. Delete Propagation (Archive)
+
+> **Prerequisite:** Delete propagation must be implemented per the design doc
+> at `docs/plans/2026-04-12-delete-propagation-design.md`.
+
+### 19a. First sync populates manifest
+
+1. Sync with at least two books having `.sdr` directories
+
+- [ ] `synced_directories` in `supersync_cache.json` lists both `.sdr` names
+- [ ] Each entry has `first_synced`, `last_synced`, and `remote_path`
+
+### 19b. Book deletion archives remote .sdr
+
+1. Sync (establish manifest)
+2. Delete a book's `.sdr` directory locally
+3. Sync again
+
+- [ ] Remote `.sdr` is moved to `<sync_folder>/.supersync-archive/<name>.<timestamp>/`
+- [ ] Timestamp format is `YYYY-MM-DDTHHMM`
+- [ ] Entry is removed from `synced_directories` manifest
+- [ ] Other books are unaffected
+
+### 19c. Re-adding a book after archive
+
+1. After 19b, re-open the same book and create new annotations
+2. Sync
+
+- [ ] New `.sdr` is uploaded to the original path (not the archive)
+- [ ] Archive copy is untouched
+- [ ] New entry appears in `synced_directories`
+
+### 19d. Second archive of same book (timestamp collision avoidance)
+
+1. Complete 19b and 19c
+2. Delete the book's `.sdr` again
+3. Sync
+
+- [ ] Second archive created with a different timestamp
+- [ ] Both archive copies exist in `.supersync-archive/`
+
+### 19e. Move/rename failure fallback
+
+1. Simulate a rename failure (e.g., revoke write permissions on archive folder)
+2. Delete a book locally and sync
+
+- [ ] Warning logged about failed archive operation
+- [ ] Remote `.sdr` folder **persists** (not deleted)
+- [ ] No crash; sync completes for other books
+- [ ] Manifest entry is **not** removed (retry on next sync)
 
 ---
 
