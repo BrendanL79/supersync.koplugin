@@ -2,6 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_database": "supersync.koplugin",
+  "dolt_database": "supersync_koplugin",
   "project_id": "e39c07a3-df05-47c9-b67e-0b72d610aebc"
 }
